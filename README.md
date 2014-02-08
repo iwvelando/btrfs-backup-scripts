@@ -36,5 +36,5 @@ Once placed the idea is to let the periodic snapshots run their course and to ru
 
 # Next Steps
 
-## Create a restoration script
-## Come up with smarter ways of detecting a system's configuration to reduce hard-coding
+* Create a restoration script
+* Come up with smarter ways of detecting a system's configuration to reduce hard-coding
