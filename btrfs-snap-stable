@@ -1,0 +1,26 @@
+#!/bin/bash
+# Stable snapshots: create a set of read-only btrfs snapshots and then delete any sets of snapshots over a specified limit
+# Intended use is on a user-specified basis for long-term and infrequent stable snapshots
+
+maxSets=3
+subvolsPerSet=3
+subvolDir="/mnt/defvol"
+subvolActiveDir="$subvolDir"/__active
+subvolSnapshotDir="$subvolDir"/__snapshots
+prefix="stable-"$( date "+%F-%H-%M-%S" )
+
+# Make a new set of read-only snapshots
+btrfs subvolume snapshot -r "$subvolActiveDir"/rootvol "$subvolSnapshotDir"/"$prefix"-rootvol
+btrfs subvolume snapshot -r "$subvolActiveDir"/home "$subvolSnapshotDir"/"$prefix"-home
+btrfs subvolume snapshot -r "$subvolActiveDir"/var "$subvolSnapshotDir"/"$prefix"-var
+
+# Compute how many sets of stable snapshots we have
+nSubvols=$( btrfs subvolume list -rs --sort=ogen $subvolDir | grep "stable-" | wc -l )
+nSets=$(( $nSubvols/$subvolsPerSet ))
+surplus=$(( $nSets - $maxSets ))
+nDel=$(( $surplus * $subvolsPerSet ))
+
+# Remove any subvolumes over the limit
+if [ $surplus -ge 1 ]; then
+	btrfs subvolume list -rs --sort=ogen $subvolDir | grep "stable-" | awk -v subvolDir="$subvolDir"/ '{print subvolDir $14}' | head -n $nDel | xargs btrfs subvolume delete
+fi
