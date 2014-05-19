@@ -1,0 +1,26 @@
+#!/bin/bash
+# Monthly snapshots: create a set of read-only btrfs snapshots and then delete any sets of snapshots over a specified limit
+# Intended use is for a monthly cron job
+
+maxSets=3
+subvolsPerSet=3
+subvolDir="/mnt/datavol"
+subvolActiveDir="$subvolDir"/__active
+subvolSnapshotDir="$subvolDir"/__snapshots
+prefix="monthly-"$( date "+%F-%H-%M-%S" )
+
+# Make a new set of read-only snapshots
+btrfs subvolume snapshot -r "$subvolActiveDir"/data "$subvolSnapshotDir"/"$prefix"-data
+btrfs subvolume snapshot -r "$subvolActiveDir"/media "$subvolSnapshotDir"/"$prefix"-media
+btrfs subvolume snapshot -r "$subvolActiveDir"/games "$subvolSnapshotDir"/"$prefix"-games
+
+# Compute how many sets of monthly snapshots we have
+nSubvols=$( btrfs subvolume list -rs --sort=ogen $subvolDir | grep "monthly-" | wc -l )
+nSets=$(( $nSubvols/$subvolsPerSet ))
+surplus=$(( $nSets - $maxSets ))
+nDel=$(( $surplus * $subvolsPerSet ))
+
+# Remove any subvolumes over the limit
+if [ $surplus -ge 1 ]; then
+	btrfs subvolume list -rs --sort=ogen $subvolDir | grep "monthly-" | awk -v subvolDir="$subvolDir"/ '{print subvolDir $14}' | head -n $nDel | xargs btrfs subvolume delete
+fi
